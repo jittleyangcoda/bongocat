@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EmulatorJS - Universal ROM Loader</title>
+  <style>
+    body {
+      background: #0e0e0e;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    select, input, button {
+      margin: 10px;
+      padding: 8px 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+    }
+    select, input {
+      background-color: #1f1f1f;
+      color: white;
+    }
+    button {
+      background-color: #0078ff;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #005fcc;
+    }
+    #emulator {
+    width: 80%;
+    max-width: 900px;
+    height: 600px;
+    margin: 20px auto;
+    background: black;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    }
+    #emulator iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 Play Your Own ROM - EmulatorJS</h1>
+  <p>Select your console, upload your ROM, and click Load!</p>
+
+  <!-- Console Selector -->
+  <select id="consoleSelect">
+    <optgroup label="Nintendo">
+      <option value="nes">Famicom / NES</option>
+      <option value="gba">Game Boy Advance</option>
+      <option value="gb">Game Boy</option>
+      <option value="snes">SNES</option>
+      <option value="nds">DS</option>
+      <option value="n64">Nintendo 64</option>
+      <option value="virtualboy">Virtual Boy</option>
+    </optgroup>
+
+    <optgroup label="Sega">
+      <option value="sms">Master System</option>
+      <option value="megadrive">Mega Drive / Genesis</option>
+      <option value="gamegear">Game Gear</option>
+      <option value="saturn">Saturn</option>
+      <option value="sega32x">32X</option>
+      <option value="segacd">Sega CD</option>
+    </optgroup>
+
+    <optgroup label="Atari">
+      <option value="atari2600">Atari 2600</option>
+      <option value="atari5200">Atari 5200</option>
+      <option value="atari7800">Atari 7800</option>
+      <option value="lynx">Lynx</option>
+      <option value="jaguar">Jaguar</option>
+    </optgroup>
+
+    <optgroup label="Commodore">
+      <option value="c64">Commodore 64</option>
+      <option value="c128">Commodore 128</option>
+      <option value="amiga">Amiga</option>
+      <option value="pet">PET</option>
+      <option value="plus4">Plus/4</option>
+      <option value="vic20">VIC-20</option>
+    </optgroup>
+
+    <optgroup label="Other">
+      <option value="psx">PlayStation</option>
+      <option value="psp">PlayStation Portable</option>
+      <option value="arcade">Arcade</option>
+      <option value="3do">3DO</option>
+      <option value="mame2003">MAME 2003</option>
+      <option value="coleco">ColecoVision</option>
+    </optgroup>
+  </select>
+
+  <!-- ROM File Input -->
+  <input type="file" id="romInput" accept=".nes,.smc,.sfc,.gba,.gb,.gbc,.zip,.bin,.iso,.rom,.img" />
+
+  <!-- Load Button -->
+  <button id="loadBtn">Load</button>
+
+  <!-- Emulator Container -->
+  <div id="emulator"></div>
+  <script>
+    let selectedCore = null;
+    let selectedFile = null;
+
+    // When the user selects a console
+    document.getElementById("consoleSelect").addEventListener("change", (e) => {
+      selectedCore = e.target.value;
+    });
+
+    // When the user picks a ROM file
+    document.getElementById("romInput").addEventListener("change", (e) => {
+      selectedFile = e.target.files[0];
+    });
+
+    // When the user clicks Load
+    document.getElementById("loadBtn").addEventListener("click", async () => {
+      if (!selectedCore) {
+        alert("Please select a console!");
+        return;
+      }
+      if (!selectedFile) {
+        alert("Please select a ROM file!");
+        return;
+      }
+
+      // Convert file to Blob URL
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const blob = new Blob([arrayBuffer]);
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Setup EmulatorJS variables
+      EJS_player = "#emulator";
+      EJS_gameUrl = blobUrl;
+      EJS_core = selectedCore;
+      EJS_pathtodata = "https://calm-moon-9ca7.ilikechez87.workers.dev/stable/data/";
+      EJS_startOnLoaded = true
+
+      // Dynamically load the official EmulatorJS loader
+      const script = document.createElement("script");
+      script.src = "https://calm-moon-9ca7.ilikechez87.workers.dev/stable/data/loader.js";
+      document.body.appendChild(script);
+      EJS_onGameStart = function() {
+        const iframe = document.querySelector("#emulator iframe");
+            if (iframe && iframe.requestFullscreen) {
+            iframe.requestFullscreen().catch(err => console.warn("Fullscreen failed:", err));
+            }
+      };
+      document.getElementById("emulator").innerHTML = "";
+    });
+  </script>
+</body>
+</html>

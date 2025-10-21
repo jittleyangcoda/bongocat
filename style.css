@@ -1,0 +1,26 @@
+body {
+    background-color: gray;
+}
+
+.title {
+    text-align: center;
+    color: rgb(240, 240, 240);
+    font-family: Poppins, sans-serif;
+}
+
+li {
+    list-style-type: none;
+}
+.game-item {
+    background-color: black;
+    border-color: black;
+    border-width: 7px;
+    border-style: solid;
+    border-radius: 5px;
+    color: rgb(240, 240, 240);
+    font-family: Poppins, sans-serif;
+    text-decoration: none;
+    display: inline-block;
+    margin: 5px;
+    vertical-align: top;
+}
