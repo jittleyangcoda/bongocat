@@ -1,80 +1,71 @@
-const path = window.location.pathname;
-const isIndex =
-  path.endsWith("index.html") || path === "/" || path === "";
+// === Shared overlay code (runs on every page) ===
+function initConsoleOverlay() {
+  const overlay = document.createElement("div");
+  overlay.id = "consoleOverlay";
+  overlay.style.position = "fixed";
+  overlay.style.bottom = "10px";
+  overlay.style.right = "10px";
+  overlay.style.width = "300px";
+  overlay.style.height = "200px";
+  overlay.style.background = "rgba(0, 0, 0, 0.8)";
+  overlay.style.color = "white";
+  overlay.style.padding = "8px";
+  overlay.style.fontFamily = "monospace";
+  overlay.style.fontSize = "12px";
+  overlay.style.overflowY = "auto";
+  overlay.style.borderRadius = "10px";
+  overlay.style.display = "none";
+  overlay.style.zIndex = "9999";
+  document.body.appendChild(overlay);
 
-if (isIndex) {
-  fetch('homework.json')
-    .then(response => response.json())
-    .then(data => {
-      const homeworkList = document.getElementById('homeworkList');
-      data.forEach(homework => {
-        const li = document.createElement('li');
-        const liInfo = document.createElement('a');
-        liInfo.className = 'homework-item'
-        liInfo.href = homework.url;
-        liInfo.textContent = homework.title;
-        homeworkList.appendChild(li);
-        li.appendChild(liInfo);
-      });
-    })
-    .catch(error => console.error('Error fetching homework list:', error));
-  console.log("Running index-only script");
-} else {
-  (() => {
-    const HOTKEY = '`'; // backtick key to toggle overlay
+  // Hook console.log
+  const originalLog = console.log;
+  console.log = (...args) => {
+    originalLog(...args);
+    overlay.innerHTML += args.join(" ") + "<br>";
+    overlay.scrollTop = overlay.scrollHeight;
+  };
 
-    // Create overlay container
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    max-height: 40vh;
-    background: rgba(0, 0, 0, 0.85);
-    color: #00ff88;
-    font-family: monospace;
-    font-size: 12px;
-    overflow-y: auto;
-    padding: 8px;
-    box-sizing: border-box;
-    z-index: 999999;
-    display: none;
-    border-top: 1px solid #00ff88;
-    white-space: pre-wrap;
-  `;
-    document.body.appendChild(overlay);
-
-    // Helper to add lines
-    function addLine(text, color) {
-      const line = document.createElement('div');
-      line.style.color = color;
-      line.textContent = text;
-      overlay.appendChild(line);
-      overlay.scrollTop = overlay.scrollHeight;
+  // Toggle overlay with a hotkey (e.g., ~ key)
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "`") {
+      overlay.style.display =
+        overlay.style.display === "none" ? "block" : "none";
     }
+  });
 
-    // Hook console methods
-    ['log', 'warn', 'error'].forEach(type => {
-      const orig = console[type];
-      console[type] = (...args) => {
-        orig.apply(console, args);
-        const msg = args.map(a =>
-          typeof a === 'object' ? JSON.stringify(a, null, 2) : a
-        ).join(' ');
-        addLine(`[${type.toUpperCase()}] ${msg}`,
-          type === 'error' ? '#ff4444' : type === 'warn' ? '#ffcc00' : '#00ff88');
-      };
-    });
-
-    // Toggle visibility with a hotkey
-    document.addEventListener('keydown', e => {
-      if (e.key === HOTKEY) {
-        overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
-      }
-    });
-
-    // Optional: startup message
-    console.log('✅ Console overlay initialized — press `' + HOTKEY + '` to toggle');
-  })();
+  console.log("[Overlay] Console overlay initialized");
 }
+
+// === Code that runs only on index.html ===
+function runIndexFeatures() {
+  console.log("Running index-specific features...");
+  fetch('homework.json')
+  .then(response => response.json())
+  .then(data => {
+    const homeworkList = document.getElementById('homeworkList');
+    data.forEach(homework => {
+      const li = document.createElement('li');
+      const liInfo = document.createElement('a');
+      liInfo.className = 'homework-item'
+      liInfo.href = homework.url;
+      liInfo.textContent = homework.title;
+      homeworkList.appendChild(li);
+      li.appendChild(liInfo);
+    });
+  })
+  .catch(error => console.error('Error fetching homework list:', error));
+}
+
+// === Initialize ===
+window.addEventListener("DOMContentLoaded", () => {
+  initConsoleOverlay();
+
+  const path = window.location.pathname;
+  const isIndex =
+    path.endsWith("index.html") || path === "/" || path === "";
+
+  if (isIndex) {
+    runIndexFeatures();
+  }
+});
