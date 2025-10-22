@@ -1,16 +1,15 @@
-//fetch the game list
-fetch('games.json')
+fetch('homework.json')
   .then(response => response.json())
   .then(data => {
-    const gameList = document.getElementById('gameList');
-    data.forEach(game => {
+    const homeworkList = document.getElementById('homeworkList');
+    data.forEach(homework => {
       const li = document.createElement('li');
       const liInfo = document.createElement('a');
-      liInfo.className = 'game-item'
-      liInfo.href = game.url;
-      liInfo.textContent = game.title;
-      gameList.appendChild(li);
+      liInfo.className = 'homework-item'
+      liInfo.href = homework.url;
+      liInfo.textContent = homework.title;
+      homeworkList.appendChild(li);
       li.appendChild(liInfo);
     });
   })
-  .catch(error => console.error('Error fetching game list:', error));
+  .catch(error => console.error('Error fetching homework list:', error));
