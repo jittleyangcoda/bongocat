@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>basically something for school</title>
@@ -11,10 +12,14 @@
       text-align: center;
       padding: 20px;
     }
+
     h1 {
       margin-bottom: 10px;
     }
-    select, input, button {
+
+    select,
+    input,
+    button {
       margin: 10px;
       padding: 8px 12px;
       font-size: 16px;
@@ -22,39 +27,46 @@
       border: none;
       outline: none;
     }
-    select, input {
+
+    select,
+    input {
       background-color: #1f1f1f;
       color: white;
     }
+
     button {
       background-color: #0078ff;
       color: white;
       cursor: pointer;
       transition: background 0.2s;
     }
+
     button:hover {
       background-color: #005fcc;
     }
+
     #emulator {
-    width: 80%;
-    max-width: 900px;
-    height: 600px;
-    margin: 20px auto;
-    background: black;
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+      width: 80%;
+      max-width: 900px;
+      height: 600px;
+      margin: 20px auto;
+      background: black;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+
     #emulator iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    display: block;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
     }
   </style>
 </head>
+
 <body>
   <h1>🎮 Play Your Own ROM - EmulatorJS</h1>
   <p>Select your console, upload your ROM, and click Load!</p>
@@ -115,54 +127,100 @@
 
   <!-- Emulator Container -->
   <div id="emulator"></div>
+  <!-- put this in your page where you currently set EJS_player/EJS_core and load loader.js -->
   <script>
-    let selectedCore = null;
-    let selectedFile = null;
+    /* ----- helpers ----- */
+    function safeKey(name) {
+      return 'ejs_save_' + encodeURIComponent(name);
+    }
 
-    // When the user selects a console
-    document.getElementById("consoleSelect").addEventListener("change", (e) => {
-      selectedCore = e.target.value;
-    });
-
-    // When the user picks a ROM file
-    document.getElementById("romInput").addEventListener("change", (e) => {
-      selectedFile = e.target.files[0];
-    });
-
-    // When the user clicks Load
-    document.getElementById("loadBtn").addEventListener("click", async () => {
-      if (!selectedCore) {
-        alert("Please select a console!");
-        return;
+    // Convert ArrayBuffer -> base64 (safe for large buffers by chunking)
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      const chunkSize = 0x8000; // 32KB chunks
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const sub = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, sub);
       }
-      if (!selectedFile) {
-        alert("Please select a ROM file!");
-        return;
-      }
+      return btoa(binary);
+    }
 
-      // Convert file to Blob URL
+    function base64ToDataUrl(b64, mime = 'application/octet-stream') {
+      return `data:${mime};base64,${b64}`;
+    }
+
+    /* ----- When saving: catch emulator save updates ----- */
+    /* This function will be set before loader.js is appended so the running emulator
+       calls it when a save file has changed. EJS_onSaveUpdate receives:
+       { hash, save (ArrayBuffer), screenshot, format }
+    */
+    window.EJS_onSaveUpdate = function (info) {
+      try {
+        if (!info || !info.save) return;
+        // choose a key - prefer gameName if present, fallback to gameUrl
+        // EmulatorJS will provide names; if you're the uploader use the uploaded filename
+        const gameId = (window.EJS_gameName || window.EJS_gameUrl || 'unknown-game');
+        const key = safeKey(gameId);
+        const b64 = arrayBufferToBase64(info.save);
+        // Save base64 string to localStorage
+        localStorage.setItem(key, b64);
+        console.log('[EJS] saved to localStorage key=', key, ' bytes=', info.save.byteLength);
+      } catch (err) {
+        console.warn('[EJS] save persist failed', err);
+      }
+    };
+
+    /* ----- Before launching emulator: mount saved file if present ----- */
+    /* Call this right before you dynamically create loader.js (or before including it statically) */
+    async function prepareSavedFilesForLaunch(gameNameOrUrl, expectedSaveFilename) {
+      // expectedSaveFilename should be the file name EmulatorJS will look for,
+      // e.g. "Super Mario World.srm" or "game.srm" depending on the core.
+      const key = safeKey(gameNameOrUrl);
+      const b64 = localStorage.getItem(key);
+      if (!b64) return null;
+
+      // create a data URL and instruct loader to extract it into /data/saves/
+      // EJS_externalFiles maps a path in the EJS FS -> URL
+      const dataUrl = base64ToDataUrl(b64);
+      // mount path inside emulator FS. Example target path '/data/saves/<filename>'
+      const mountPath = '/data/saves/' + expectedSaveFilename;
+      window.EJS_externalFiles = {};
+      window.EJS_externalFiles[mountPath] = dataUrl;
+
+      console.log('[EJS] found local save, will mount at', mountPath);
+      return mountPath;
+    }
+
+    /* ----- Example integration with your Load button handler ----- */
+    /* Assumes you already set selectedCore & selectedFile and convert file -> blobUrl */
+    document.getElementById('loadBtn').addEventListener('click', async () => {
+      // ... your existing checks and selectedCore/selectedFile handling ...
       const arrayBuffer = await selectedFile.arrayBuffer();
-      const blob = new Blob([arrayBuffer]);
-      const blobUrl = URL.createObjectURL(blob);
+      const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
+      window.EJS_player = "#emulator";
+      window.EJS_gameUrl = blobUrl;
+      window.EJS_core = selectedCore;
+      window.EJS_pathtodata = "https://calm-moon-9ca7.ilikechez87.workers.dev/stable/data/";
 
-      // Setup EmulatorJS variables
-      EJS_player = "#emulator";
-      EJS_gameUrl = blobUrl;
-      EJS_core = selectedCore;
-      EJS_pathtodata = "https://calm-moon-9ca7.ilikechez87.workers.dev/stable/data/";
-      EJS_startOnLoaded = true
+      // Optional: force periodic flush from core to save files every 7s
+      window.EJS_fixedSaveInterval = 7000; // milliseconds -- adjust as needed
 
-      // Dynamically load the official EmulatorJS loader
+      // Prepare a name for the save file that the core will expect:
+      // choose a sane default: uploaded filename with .srm extension
+      const baseFileName = selectedFile.name.replace(/\.[^/.]+$/, ""); // strip ext
+      const saveFileName = baseFileName + ".srm";
+
+      // If a save exists in localStorage, mount it so the core finds it on boot.
+      await prepareSavedFilesForLaunch(window.EJS_gameUrl || baseFileName, saveFileName);
+
+      // Clean emulator container for reloads
+      document.getElementById("emulator").innerHTML = "";
+
+      // Now inject loader.js (it will read the globals above and mount external files)
       const script = document.createElement("script");
       script.src = "https://calm-moon-9ca7.ilikechez87.workers.dev/stable/data/loader.js";
       document.body.appendChild(script);
-      EJS_onGameStart = function() {
-        const iframe = document.querySelector("#emulator iframe");
-            if (iframe && iframe.requestFullscreen) {
-            iframe.requestFullscreen().catch(err => console.warn("Fullscreen failed:", err));
-            }
-      };
-      document.getElementById("emulator").innerHTML = "";
     });
   </script>
 </body>
