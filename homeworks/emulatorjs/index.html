@@ -194,11 +194,31 @@
     }
 
     /* ----- Example integration with your Load button handler ----- */
-    /* Assumes you already set selectedCore & selectedFile and convert file -> blobUrl */
-    document.getElementById('loadBtn').addEventListener('click', async () => {
-      // ... your existing checks and selectedCore/selectedFile handling ...
+    let selectedCore = null;
+    let selectedFile = null;
+
+    document.getElementById("consoleSelect").addEventListener("change", (e) => {
+      selectedCore = e.target.value;
+    });
+
+    document.getElementById("romInput").addEventListener("change", (e) => {
+      selectedFile = e.target.files[0];
+    });
+
+    document.getElementById("loadBtn").addEventListener("click", async () => {
+      if (!selectedCore) {
+        alert("Please select a console!");
+        return;
+      }
+      if (!selectedFile) {
+        alert("Please select a ROM file!");
+        return;
+      }
+
+      // Convert file to Blob URL
       const arrayBuffer = await selectedFile.arrayBuffer();
-      const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
+      const blob = new Blob([arrayBuffer]);
+      const blobUrl = URL.createObjectURL(blob);
       window.EJS_player = "#emulator";
       window.EJS_gameUrl = blobUrl;
       window.EJS_core = selectedCore;
