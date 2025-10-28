@@ -2,5 +2,9 @@
     {
         "title": "EmulatorJS",
         "url": "./homeworks/emulatorjs/index.html"
+    },
+    {
+        "title": "Tetris",
+        "url": "./homeworks/tetris/index.html"
     }
 ]

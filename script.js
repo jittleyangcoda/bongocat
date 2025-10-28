@@ -2,7 +2,7 @@
 // In-Page Console Overlay (toggle with backtick ` )
 // ==================================================
 
-(function () {
+function initConsoleOverlay() {
   const overlay = document.createElement("div");
   const logContainer = document.createElement("div");
   const input = document.createElement("input");
@@ -99,8 +99,84 @@
     }
   });
 
-  console.log("[Overlay Console] Loaded. Press ` to toggle.");
-})();
+  console.log("[Overlay Console] Loaded. Press ` to toggle.")
+  // 🔮 --- Autocomplete Setup ---
+  let suggestions = Object.getOwnPropertyNames(window);
+  let filtered = [];
+  let index = -1;
+
+  const suggestionBox = document.createElement("div");
+  suggestionBox.style.position = "absolute";
+  suggestionBox.style.background = "rgba(30,30,30,0.9)";
+  suggestionBox.style.color = "#0f0";
+  suggestionBox.style.padding = "4px";
+  suggestionBox.style.fontSize = "14px";
+  suggestionBox.style.fontFamily = "monospace";
+  suggestionBox.style.zIndex = "10000";
+  suggestionBox.style.display = "none";
+  overlay.appendChild(suggestionBox);
+
+  input.addEventListener("input", () => {
+    const val = input.value.trim();
+    suggestionBox.innerHTML = "";
+    filtered = [];
+
+    if (!val) {
+      suggestionBox.style.display = "none";
+      return;
+    }
+
+    // match window properties or global functions
+    filtered = suggestions.filter((s) => s.startsWith(val)).slice(0, 8);
+    if (filtered.length === 0) {
+      suggestionBox.style.display = "none";
+      return;
+    }
+
+    suggestionBox.style.display = "block";
+    suggestionBox.style.top = input.offsetTop - 120 + "px";
+    suggestionBox.style.left = input.offsetLeft + "px";
+    filtered.forEach((s, i) => {
+      const el = document.createElement("div");
+      el.textContent = s;
+      el.style.padding = "2px 6px";
+      el.style.cursor = "pointer";
+      el.style.background = i === index ? "#333" : "transparent";
+      el.addEventListener("click", () => {
+        input.value = s;
+        suggestionBox.style.display = "none";
+      });
+      suggestionBox.appendChild(el);
+    });
+  });
+
+  // navigate suggestions
+  input.addEventListener("keydown", (e) => {
+    if (suggestionBox.style.display === "none") return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      index = (index + 1) % filtered.length;
+      updateSuggestions();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      index = (index - 1 + filtered.length) % filtered.length;
+      updateSuggestions();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      if (filtered[index]) {
+        input.value = filtered[index];
+        suggestionBox.style.display = "none";
+      }
+    }
+  });
+
+  function updateSuggestions() {
+    const divs = suggestionBox.children;
+    for (let i = 0; i < divs.length; i++) {
+      divs[i].style.background = i === index ? "#333" : "transparent";
+    }
+  }
+};
 
 
 // === Code that runs only on index.html ===
@@ -123,117 +199,13 @@ function runIndexFeatures() {
   .catch(error => console.error('Error fetching homework list:', error));
 }
 
-
-// ==========================================
-// EmulatorJS IndexedDB Save System
-// ==========================================
-
-// Create IndexedDB for EmulatorJS saves
-const DB_NAME = "EJS_Saves_DB";
-const STORE_NAME = "game_saves";
-
-// Open IndexedDB connection
-let dbPromise = new Promise((resolve, reject) => {
-  const request = indexedDB.open(DB_NAME, 1);
-  request.onupgradeneeded = () => {
-    const db = request.result;
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      db.createObjectStore(STORE_NAME, { keyPath: "gameID" });
-    }
-  };
-  request.onsuccess = () => resolve(request.result);
-  request.onerror = (e) => reject(e);
-});
-
-// Helper functions
-async function saveToIndexedDB(gameID, data, hash) {
-  const db = await dbPromise;
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  const store = tx.objectStore(STORE_NAME);
-  store.put({
-    gameID,
-    data,
-    hash,
-    timestamp: Date.now(),
-  });
-  return tx.complete;
-}
-
-async function loadFromIndexedDB(gameID) {
-  const db = await dbPromise;
-  const tx = db.transaction(STORE_NAME, "readonly");
-  const store = tx.objectStore(STORE_NAME);
-  return new Promise((resolve) => {
-    const req = store.get(gameID);
-    req.onsuccess = () => resolve(req.result ? req.result.data : null);
-    req.onerror = () => resolve(null);
-  });
-}
-
-// ==========================================
-// EmulatorJS Hook Integration
-// ==========================================
-
-// Get current game identifier (you can customize this)
-const EJS_gameID = new URLSearchParams(window.location.search).get("game") || "default_game";
-
-// Triggered when a save file changes
-EJS_onSaveUpdate = async function (info) {
-  console.log("[EJS] Save updated. Hash:", info.hash);
-
-  // Convert save buffer (ArrayBuffer) → Base64 for storage
-  const base64 = arrayBufferToBase64(info.save);
-
-  // Save to IndexedDB
-  await saveToIndexedDB(EJS_gameID, base64, info.hash);
-  console.log("[EJS] Save persisted to IndexedDB!");
-};
-
-// Optional: auto flush saves every 5 seconds
-EJS_fixedSaveInterval = 5000;
-
-// ==========================================
-// On Page Load: Restore Save
-// ==========================================
-(async () => {
-  const savedData = await loadFromIndexedDB(EJS_gameID);
-  if (savedData) {
-    console.log("[EJS] Found saved data for", EJS_gameID);
-    const binary = base64ToArrayBuffer(savedData);
-
-    // Feed save into emulator when available
-    window.addEventListener("EJS_ready", () => {
-      console.log("[EJS] Restoring save...");
-      EJS_emulator.setSaveFile(binary);
-    });
-  } else {
-    console.log("[EJS] No previous save found.");
-  }
-})();
-
 // ==========================================
 // Utility functions
 // ==========================================
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
 
 // === Initialize ===
 window.addEventListener("DOMContentLoaded", () => {
-  initConsoleOverlay();
-
+  initConsoleOverlay()
   const path = window.location.pathname;
   const isIndex =
     path.endsWith("/") || path === "";
