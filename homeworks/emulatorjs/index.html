@@ -57,7 +57,7 @@
       display: block;
     }
   </style>
-  <script src="https://raw.githubusercontent.com/jittleyangcoda/bongocat/refs/heads/main/script.js"></script>
+  <script src="/script.js"></script>
 </head>
 
 <body>
@@ -122,52 +122,6 @@
   <div id="emulator"></div>
 
   <script>
-    function safeKey(name) {
-      return 'ejs_save_' + encodeURIComponent(name);
-    }
-
-    function arrayBufferToBase64(buffer) {
-      const bytes = new Uint8Array(buffer);
-      const chunkSize = 0x8000;
-      let binary = '';
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const sub = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, sub);
-      }
-      return btoa(binary);
-    }
-
-    function base64ToDataUrl(b64, mime = 'application/octet-stream') {
-      return `data:${mime};base64,${b64}`;
-    }
-
-    window.EJS_onSaveUpdate = function (info) {
-      try {
-        if (!info || !info.save) return;
-        const gameId = (window.EJS_gameName || window.EJS_gameUrl || 'unknown-game');
-        const key = safeKey(gameId);
-        const b64 = arrayBufferToBase64(info.save);
-        localStorage.setItem(key, b64);
-        console.log('[EJS] saved to localStorage key=', key, ' bytes=', info.save.byteLength);
-      } catch (err) {
-        console.warn('[EJS] save persist failed', err);
-      }
-    };
-
-    async function prepareSavedFilesForLaunch(gameNameOrUrl, expectedSaveFilename) {
-      const key = safeKey(gameNameOrUrl);
-      const b64 = localStorage.getItem(key);
-      if (!b64) return null;
-
-      const dataUrl = base64ToDataUrl(b64);
-      const mountPath = '/data/saves/' + expectedSaveFilename;
-      window.EJS_externalFiles = {};
-      window.EJS_externalFiles[mountPath] = dataUrl;
-
-      console.log('[EJS] found local save, will mount at', mountPath);
-      return mountPath;
-    }
-
     let selectedCore = null;
     let selectedFile = null;
 
@@ -197,12 +151,6 @@
       window.EJS_core = selectedCore;
       window.EJS_startOnLoaded = true;
       window.EJS_pathtodata = "https://calm-moon-9ca7.ilikechez87.workers.dev/stable/data/";
-      window.EJS_fixedSaveInterval = 7000;
-
-      const baseFileName = selectedFile.name.replace(/\.[^/.]+$/, "");
-      const saveFileName = baseFileName + ".srm";
-
-      await prepareSavedFilesForLaunch(window.EJS_gameUrl || baseFileName, saveFileName);
 
       document.getElementById("emulator").innerHTML = "";
       const script = document.createElement("script");
